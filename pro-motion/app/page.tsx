@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useState, type DragEvent } from "react";
-import { useChat } from "ai/react";
+import { useChat } from "@ai-sdk/react";
 
 type Task = {
   title: string;
@@ -19,18 +19,7 @@ type Message = {
   text: string;
 };
 
-const DEFAULT_CHAT: Message[] = [
-  {
-    id: 1,
-    role: "user",
-    text: "due date by the weekend [laundry] takes about 1h priority 2",
-  },
-  {
-    id: 2,
-    role: "user",
-    text: "due date tomorrow [study] takes about 2h priority 1",
-  },
-];
+const DEFAULT_CHAT: Message[] = [];
 
 type Theme = "light" | "dark";
 // type FontSize = "sm" | "base" | "lg";
@@ -54,18 +43,23 @@ function getNextWeekendDate() {
 
 function formatDateInputValue(dueDate: string) {
   const normalized = dueDate.trim().toLowerCase();
+
+  // 1. Déjà au bon format YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) {
     return dueDate;
   }
-  if (normalized.includes("tomorrow")) {
-    return getDateOffset(1);
+
+  // 2. Format Français DD-MM-YYYY -> Convertir en YYYY-MM-DD
+  const frDateMatch = normalized.match(/^(\d{2})[-/](\d{2})[-/](\d{4})$/);
+  if (frDateMatch) {
+    return `${frDateMatch[3]}-${frDateMatch[2]}-${frDateMatch[1]}`;
   }
-  if (normalized.includes("today")) {
-    return getDateOffset(0);
-  }
-  if (normalized.includes("weekend")) {
-    return getNextWeekendDate();
-  }
+
+  // 3. Mots-clés
+  if (normalized.includes("tomorrow")) return getDateOffset(1);
+  if (normalized.includes("today")) return getDateOffset(0);
+  if (normalized.includes("weekend")) return getNextWeekendDate();
+
   return "";
 }
 
@@ -256,12 +250,16 @@ export default function Home() {
 
     setMessages(nextMessages);
     setParsedTasks((current) => {
-      const freshTasks = parseTasksFromText(userText);
-      return freshTasks.map((task) => {
-        const existing = current.find((currentTask) => currentTask.rawText === task.rawText);
-        return existing ? { ...task, completed: existing.completed } : task;
-      });
+    const freshTasks = parseTasksFromText(userText);
+    return freshTasks.map((newTask) => {
+      // On cherche si la tâche existe déjà dans notre liste actuelle (via son texte brut)
+      const existing = current.find((t) => t.rawText === newTask.rawText);
+      
+      // Si elle existe, on renvoie la version "existing" qui contient tes modifications (Edits)
+      // Sinon, on prend la "newTask" fraîchement parsée
+      return existing ? existing : newTask;
     });
+  });
     setInputValue("");
   };
 
@@ -321,25 +319,25 @@ const themeClass = theme === "dark"
   : "bg-zinc-50 text-zinc-950";  const cardTheme = theme === "dark" ? "bg-slate-900 border-slate-700" : "bg-white border-zinc-200";
   const headerTheme = theme === "dark" ? "bg-slate-900/80 border-slate-800 backdrop-blur-md text-white" : "bg-white/80 border-zinc-200 backdrop-blur-md text-zinc-950";
 
-  // const setPreviousPeriod = () => {
-  //   const current = new Date(calendarReference);
-  //   if (calendarMode === "week") {
-  //     current.setDate(current.getDate() - 7);
-  //   } else {
-  //     current.setMonth(current.getMonth() - 1);
-  //   }
-  //   setCalendarReference(new Date(current));
-  // };
+  const setPreviousPeriod = () => {
+    const current = new Date(calendarReference);
+    if (calendarMode === "week") {
+      current.setDate(current.getDate() - 7);
+    } else {
+      current.setMonth(current.getMonth() - 1);
+    }
+    setCalendarReference(new Date(current));
+  };
 
-  // const setNextPeriod = () => {
-  //   const current = new Date(calendarReference);
-  //   if (calendarMode === "week") {
-  //     current.setDate(current.getDate() + 7);
-  //   } else {
-  //     current.setMonth(current.getMonth() + 1);
-  //   }
-  //   setCalendarReference(new Date(current));
-  // };
+  const setNextPeriod = () => {
+    const current = new Date(calendarReference);
+    if (calendarMode === "week") {
+      current.setDate(current.getDate() + 7);
+    } else {
+      current.setMonth(current.getMonth() + 1);
+    }
+    setCalendarReference(new Date(current));
+  };
 
   const handleTaskDragStart = (index: number, event: DragEvent<HTMLDivElement>) => {
     event.dataTransfer.setData("text/plain", String(index));
@@ -624,27 +622,15 @@ const themeClass = theme === "dark"
         ) : (
           <section className={`${cardTheme} rounded-3xl border p-8 shadow-sm`}>
             <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Calendar view</p>
                 <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Schedule tasks by date</h1>
+              </div>
             </div>
 
             <div className="grid gap-6 xl:grid-cols-[0.95fr_1.35fr]">
               <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
                 <h2 className="mb-4 text-base font-semibold text-slate-900">Drag tasks to a day</h2>
-                <div className="space-y-3">
-                  {parsedTasks.map((task, index) => (
-                    <div
-                      key={`${task.rawText}-${index}-calendar`}
-                      draggable
-                      onDragStart={(event) => handleTaskDragStart(index, event)}
-                      className="rounded-3xl border border-slate-200 bg-white p-3 shadow-sm transition hover:border-sky-300 hover:bg-slate-50"
-                    >
-                      <p className="font-semibold text-slate-950">{task.title}</p>
-                      <p className="text-sm text-slate-600">Due {task.dueDate || "unspecified"}</p>
-                      <p className="text-sm text-slate-600">{task.duration} • priority {task.priority}</p>
-                    </div>
-                  ))}
-                </div>
               </div>
 
               <div className="space-y-4">
