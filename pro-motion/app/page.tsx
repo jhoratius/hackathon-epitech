@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useState, type DragEvent } from "react";
+import { useChat } from "ai/react";
 
 type Task = {
   title: string;
@@ -32,10 +33,10 @@ const DEFAULT_CHAT: Message[] = [
 ];
 
 type Theme = "light" | "dark";
-type FontSize = "sm" | "base" | "lg";
-type ColorScheme = "default" | "cool" | "warm";
+// type FontSize = "sm" | "base" | "lg";
+// type ColorScheme = "default" | "cool" | "warm";
 
-type CalendarMode = "week" | "month";
+type CalendarMode = "month";
 
 function getDateOffset(days: number) {
   const date = new Date();
@@ -221,7 +222,7 @@ export default function Home() {
   const [theme, setTheme] = useState<Theme>("light");
   const [fontSize, setFontSize] = useState<FontSize>("base");
   const [colorScheme, setColorScheme] = useState<ColorScheme>("default");
-  const [calendarMode, setCalendarMode] = useState<CalendarMode>("week");
+  const [calendarMode, setCalendarMode] = useState<CalendarMode>("month");
   const [calendarReference, setCalendarReference] = useState<Date | null>(null);
   const [draggedTaskIndex, setDraggedTaskIndex] = useState<number | null>(null);
 
@@ -264,6 +265,18 @@ export default function Home() {
     setInputValue("");
   };
 
+  const deleteGroupTasks = (dateString: string) => {
+    const confirmDelete = window.confirm(
+      `Êtes-vous sûr de vouloir supprimer toutes les tâches du ${new Date(dateString).toLocaleDateString()} ?`
+    );
+
+    if (confirmDelete) {
+      setParsedTasks((current) => 
+        current.filter((task) => task.dueDate !== dateString)
+      );
+    }
+  };
+
   const handleReset = () => {
     setMessages(DEFAULT_CHAT);
     setParsedTasks(parseTasksFromText(DEFAULT_CHAT.map((message) => message.text).join("\n")));
@@ -303,28 +316,30 @@ export default function Home() {
   const monthGrid = useMemo(() => calendarReference ? getMonthGrid(calendarReference) : [], [calendarReference]);
 
   const fontSizeClass = fontSize === "sm" ? "text-sm" : fontSize === "lg" ? "text-lg" : "text-base";
-  const themeClass = theme === "dark" ? "bg-slate-950 text-slate-100" : "bg-zinc-50 text-zinc-950";
-  const cardTheme = theme === "dark" ? "bg-slate-900 border-slate-700" : "bg-white border-zinc-200";
+const themeClass = theme === "dark" 
+  ? "bg-slate-950 text-white" // Le texte de tout le site devient blanc ici
+  : "bg-zinc-50 text-zinc-950";  const cardTheme = theme === "dark" ? "bg-slate-900 border-slate-700" : "bg-white border-zinc-200";
+  const headerTheme = theme === "dark" ? "bg-slate-900/80 border-slate-800 backdrop-blur-md text-white" : "bg-white/80 border-zinc-200 backdrop-blur-md text-zinc-950";
 
-  const setPreviousPeriod = () => {
-    const current = new Date(calendarReference);
-    if (calendarMode === "week") {
-      current.setDate(current.getDate() - 7);
-    } else {
-      current.setMonth(current.getMonth() - 1);
-    }
-    setCalendarReference(new Date(current));
-  };
+  // const setPreviousPeriod = () => {
+  //   const current = new Date(calendarReference);
+  //   if (calendarMode === "week") {
+  //     current.setDate(current.getDate() - 7);
+  //   } else {
+  //     current.setMonth(current.getMonth() - 1);
+  //   }
+  //   setCalendarReference(new Date(current));
+  // };
 
-  const setNextPeriod = () => {
-    const current = new Date(calendarReference);
-    if (calendarMode === "week") {
-      current.setDate(current.getDate() + 7);
-    } else {
-      current.setMonth(current.getMonth() + 1);
-    }
-    setCalendarReference(new Date(current));
-  };
+  // const setNextPeriod = () => {
+  //   const current = new Date(calendarReference);
+  //   if (calendarMode === "week") {
+  //     current.setDate(current.getDate() + 7);
+  //   } else {
+  //     current.setMonth(current.getMonth() + 1);
+  //   }
+  //   setCalendarReference(new Date(current));
+  // };
 
   const handleTaskDragStart = (index: number, event: DragEvent<HTMLDivElement>) => {
     event.dataTransfer.setData("text/plain", String(index));
@@ -387,12 +402,36 @@ export default function Home() {
         <header className={`${cardTheme} rounded-3xl border p-6 shadow-sm`}>
           <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
-              <Image src="/promotion_logo.png" alt="Logo" width={200} height={70} priority />
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Pro-motion</p>
-              </div>
+              <Image src="/promotion_logo.png" alt="Logo" width={200} height={200} priority />
             </div>
             <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+                className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 ${
+                  theme === "dark" ? "bg-sky-600" : "bg-slate-200"
+                }`}
+                aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
+              >
+                {/* Rond glissant */}
+                <span
+                  className={`inline-flex h-6 w-6 items-center justify-center rounded-full bg-white shadow-md transition-transform duration-300 ${
+                    theme === "dark" ? "translate-x-9" : "translate-x-1"
+                  }`}
+                >
+                  {theme === "dark" ? (
+                    // Icône lune
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-sky-600" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M21 12.79A9 9 0 1111.21 3a7 7 0 109.79 9.79z" />
+                    </svg>
+                  ) : (
+                    // Icône soleil
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-amber-400" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 4a1 1 0 011-1V2a1 1 0 10-2 0v1a1 1 0 011 1zm0 16a1 1 0 01-1 1v1a1 1 0 102 0v-1a1 1 0 01-1-1zm8-8a1 1 0 011-1h1a1 1 0 100-2h-1a1 1 0 01-1 1zm-16 0a1 1 0 01-1 1H2a1 1 0 100 2h1a1 1 0 001-1zm13.07-5.07a1 1 0 011.41 0l.71.71a1 1 0 11-1.41 1.41l-.71-.71a1 1 0 010-1.41zM5.64 18.36a1 1 0 01-1.41 0l-.71-.71a1 1 0 111.41-1.41l.71.71a1 1 0 010 1.41zm12.02.7a1 1 0 010-1.41l.71-.71a1 1 0 111.41 1.41l-.71.71a1 1 0 01-1.41 0zM4.22 7.05a1 1 0 010-1.41l.71-.71a1 1 0 011.41 1.41l-.71.71a1 1 0 01-1.41 0zM12 8a4 4 0 100 8 4 4 0 000-8z" />
+                    </svg>
+                  )}
+                </span>
+              </button>
               <button
                 type="button"
                 onClick={() => setActiveTab("tasks")}
@@ -407,54 +446,6 @@ export default function Home() {
               >
                 Calendar
               </button>
-            </div>
-          </div>
-
-          <div className="mt-6 grid gap-4 sm:grid-cols-3">
-            <div className={`${cardTheme} rounded-3xl border p-4`}>
-              <p className="text-sm font-semibold text-slate-500">Theme</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {(["light", "dark"] as Theme[]).map((value) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => setTheme(value)}
-                    className={`rounded-full px-3 py-2 text-sm font-semibold transition ${theme === value ? "bg-sky-600 text-white" : "border border-slate-300 bg-transparent text-slate-700 hover:bg-slate-100"}`}
-                  >
-                    {value}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className={`${cardTheme} rounded-3xl border p-4`}>
-              <p className="text-sm font-semibold text-slate-500">Priority colors</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {(["default", "cool", "warm"] as ColorScheme[]).map((scheme) => (
-                  <button
-                    key={scheme}
-                    type="button"
-                    onClick={() => setColorScheme(scheme)}
-                    className={`rounded-full px-3 py-2 text-sm font-semibold transition ${colorScheme === scheme ? "bg-sky-600 text-white" : "border border-slate-300 bg-transparent text-slate-700 hover:bg-slate-100"}`}
-                  >
-                    {scheme}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className={`${cardTheme} rounded-3xl border p-4`}>
-              <p className="text-sm font-semibold text-slate-500">Font size</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {(["sm", "base", "lg"] as FontSize[]).map((size) => (
-                  <button
-                    key={size}
-                    type="button"
-                    onClick={() => setFontSize(size)}
-                    className={`rounded-full px-3 py-2 text-sm font-semibold transition ${fontSize === size ? "bg-sky-600 text-white" : "border border-slate-300 bg-transparent text-slate-700 hover:bg-slate-100"}`}
-                  >
-                    {size}
-                  </button>
-                ))}
-              </div>
             </div>
           </div>
         </header>
@@ -510,7 +501,7 @@ export default function Home() {
                     <div className="mb-2 flex flex-wrap items-center gap-2">
                       <h2 className="text-lg font-semibold text-slate-950">Tasks</h2>
                       <span className={`rounded-full px-3 py-1 text-sm font-semibold ${rushModeActive ? "bg-rose-100 text-rose-700" : "bg-slate-100 text-slate-600"}`}>
-                        {rushModeActive ? "Rush mode active" : "Rush mode idle"}
+                        {rushModeActive ? "Rush mode active" : ""}
                       </span>
                     </div>
                     <p className="text-sm text-slate-500">Drag to reschedule in the calendar view.</p>
@@ -633,22 +624,8 @@ export default function Home() {
         ) : (
           <section className={`${cardTheme} rounded-3xl border p-8 shadow-sm`}>
             <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Calendar view</p>
                 <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Schedule tasks by date</h1>
-              </div>
-              <div className="flex flex-wrap items-center gap-3">
-                {(["week", "month"] as CalendarMode[]).map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => setCalendarMode(mode)}
-                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${calendarMode === mode ? "bg-sky-600 text-white" : "border border-slate-300 bg-transparent text-slate-700 hover:bg-slate-100"}`}
-                  >
-                    {mode}
-                  </button>
-                ))}
-              </div>
             </div>
 
             <div className="grid gap-6 xl:grid-cols-[0.95fr_1.35fr]">
@@ -671,67 +648,6 @@ export default function Home() {
               </div>
 
               <div className="space-y-4">
-                <div className="flex items-center justify-between gap-4 rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                  <div>
-                    <p className="text-sm text-slate-500">Current period</p>
-                    <p className="text-lg font-semibold text-slate-950">
-                      {calendarMode === "week"
-                        ? weekDays.length > 0 ? `${weekDays[0].toLocaleDateString(undefined, { month: "short", day: "numeric" })} — ${weekDays[6].toLocaleDateString(undefined, { month: "short", day: "numeric" })}` : "Loading..."
-                        : calendarReference ? calendarReference.toLocaleDateString(undefined, { month: "long", year: "numeric" }) : "Loading..."}
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={setPreviousPeriod}
-                      className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-                    >
-                      Previous
-                    </button>
-                    <button
-                      type="button"
-                      onClick={setNextPeriod}
-                      className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-                    >
-                      Next
-                    </button>
-                  </div>
-                </div>
-
-                <div className={`rounded-3xl border border-slate-200 ${theme === "dark" ? "bg-slate-950" : "bg-white"} p-4`}>
-                  <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                    {weekDays.map((day) => (
-                      <div key={day.toISOString()}>{day.toLocaleDateString(undefined, { weekday: "short" })}</div>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-7 gap-1">
-                    {weekDays.map((day) => {
-                      const dateString = day.toISOString().slice(0, 10);
-                      const count = displayTaskCount(dateString);
-                      return (
-                        <div
-                          key={dateString}
-                          onDrop={(event) => handleCellDrop(dateString, event)}
-                          onDragOver={handleDragOver}
-                          className={`min-h-[120px] rounded-3xl border border-slate-200 p-2 transition ${heatClass(count)}`}
-                        >
-                          <div className="mb-2 flex items-center justify-between text-xs font-semibold text-slate-600">
-                            <span>{day.getDate()}</span>
-                            <span>{count}</span>
-                          </div>
-                          <div className="space-y-1 text-xs text-slate-700">
-                            {(groupedTasks[dateString] ?? []).slice(0, 3).map((task) => (
-                              <div key={`${task.rawText}-${dateString}`} className={`rounded-2xl border px-2 py-1 ${getPriorityColor(task.priority, colorScheme)} text-slate-900`}>
-                                {task.title}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
                 {calendarMode === "month" && (
                   <div className={`rounded-3xl border border-slate-200 ${theme === "dark" ? "bg-slate-950" : "bg-white"} p-4`}>
                     <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
